@@ -1,0 +1,4 @@
+# Real environment files hold secrets (Article IX). Only .env.example is versioned.
+.env
+.env.*
+!.env.example
