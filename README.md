@@ -75,8 +75,8 @@ deben devolver exactamente las tablas, restricciones e índices documentados ah�
 | Parte | Estado |
 |---|---|
 | `db` arranca vacío con un comando | verificado el 2026-10-13 (0 tablas, zona horaria UTC) |
-| Servicio `api` | pendiente: el repositorio `api` aún no tiene `Dockerfile` (T-01) |
-| Servicio `app` | pendiente: el repositorio `app` aún no tiene `Dockerfile` (T-22) |
+| Servicio `api` | verificado el 2026-10-13: migra, crea el admin inicial y responde en `/api/v1` |
+| Servicio `app` | `app` ya tiene `Dockerfile`; se levanta con `docker compose --profile app up --build` |
 
 ## Reiniciar
 
