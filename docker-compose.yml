@@ -1,0 +1,60 @@
+# Manager Library — local environment.
+# The engine starts EMPTY: no init scripts, no DDL here (Article V, ADR-001).
+# All tables, indexes, constraints and the category seed live in the API migrations.
+# Expects the repositories cloned side by side:
+#   ../test-manager-library-3145556-infra   (this repo)
+#   ../test-manager-library-3145556-api
+#   ../test-manager-library-3145556-app
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    # Built from the sibling repository. Its image entrypoint must run
+    # `php artisan migrate --force` and `php artisan library:bootstrap-admin`
+    # before serving (interpretation I-08 in docs/spec-laravel/interpretations.md).
+    build:
+      context: ../test-manager-library-3145556-api
+    env_file: .env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    volumes:
+      - covers:/var/www/html/storage/app/covers
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    # Frontend (T-22). Disabled by default until the app repository has a Dockerfile.
+    # Start it with: docker compose --profile app up --build
+    profiles: ["app"]
+    build:
+      context: ../test-manager-library-3145556-app
+    ports:
+      - "${APP_HOST_PORT:-5173}:5173"
+    depends_on:
+      - api
+
+volumes:
+  db-data:
+  covers:
