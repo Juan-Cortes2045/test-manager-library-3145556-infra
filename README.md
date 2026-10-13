@@ -1,50 +1,85 @@
 # test-manager-library-3145556-infra
 
-> **Prueba técnica · Ficha ADSO 3145556**
-> Entrega: **martes 13 de octubre de 2026, a las 5:00 p. m.** (17:00, hora Colombia).
+> **Prueba técnica · Ficha ADSO 3145556** — entrega: martes 13 de octubre de 2026, 17:00 (hora Colombia).
 
-Este repositorio es la **infraestructura** de *Manager Library*: contenedores, red, volúmenes y el motor de base de datos vacío. **Empieza vacío a propósito**: se construye en el fork de cada aprendiz.
+Infraestructura de *Manager Library*: contenedores, red, volúmenes y un motor PostgreSQL 16 **vacío**.
+El spec vive en [`test-manager-library-3145556-docs`](../test-manager-library-3145556-docs); la traducción a Laravel/React que se usa
+aquí está en `docs/spec-laravel/`.
 
-## Instrucciones
+## Reglas que sigue este repositorio
 
-Cada aprendiz debe **crear el fork** de los seis repositorios del proyecto y **resolver el proyecto
-con el spec planteado**.
-
-1. Hacer fork, a su cuenta de GitHub, de cada repositorio de la tabla del final.
-2. Leer el spec en [`test-manager-library-3145556-docs`](https://github.com/code-sena/test-manager-library-3145556-docs).
-   Se entrega en dos versiones: `spec-python/` y `spec-.net/`.
-3. Desarrollar en los forks.
-
-## El reto se desarrolla con React y PHP (Laravel)
-
-El spec está escrito para Python y para .NET, pero el reto **no** se hace en esos lenguajes:
-
-| Capa | Tecnología del reto |
+| Regla | Origen |
 |---|---|
-| Frontend | React |
-| Backend | PHP con Laravel |
+| El motor arranca vacío. Este repositorio **no tiene DDL**: ni `CREATE TABLE` ni scripts de arranque. Tablas, índices, restricciones y la semilla de categorías viven en las migraciones de la API | Constitución, artículo V; ADR-001 |
+| El sistema levanta con un solo comando y la base arranca vacía | RNF-5; tarea T-20 |
+| Ningún secreto en el repositorio: solo se versiona `.env.example`; `.env` se ignora | Constitución, artículo IX |
+| Todas las fechas en UTC | RN-6; `data-model.md` |
+| Documentación en español; código, variables y nombres de archivo en inglés | Constitución, artículo XI |
 
-Lo que el spec define sobre el negocio —historias, criterios de aceptación, reglas, contrato de la
-API, modelo de datos— se respeta. Lo que define sobre la tecnología se traduce a React y Laravel.
+## Requisitos
 
-## La prueba no consiste en escribir el código
+- Docker con Compose v2.
+- Los repositorios clonados **uno al lado del otro** (el archivo de Compose construye desde rutas relativas):
 
-El propósito principal es ver la **capacidad de desempeño con SDD** (*Spec-Driven Development*,
-desarrollo guiado por especificación): cómo se lee, se interpreta y se aplica una especificación
-para llevarla a un stack distinto. El código es el medio, no el fin.
+```text
+alguna-carpeta/
+├── test-manager-library-3145556-infra   ← este repositorio
+├── test-manager-library-3145556-api     ← se construye como servicio "api"
+└── test-manager-library-3145556-app     ← se construye como servicio "app" (perfil opcional)
+```
 
-## Entrega
+## Arranque
 
-Cuenta lo que quede **subido a los forks antes de las 5:00 p. m.** (17:00). Lo que llegue después no se revisa.
-No hay prórroga: suban avances parciales con commits pequeños durante la prueba.
+Preparación, una sola vez: copiar el ejemplo y reemplazar cada valor `change-me`.
 
-## Los seis repositorios
+```bash
+cp .env.example .env
+```
 
-| Repositorio | Qué va ahí |
+Después, un solo comando:
+
+```bash
+docker compose up --build
+```
+
+| Servicio | Qué es | Puerto (host) |
+|---|---|---|
+| `db` | `postgres:16`, base `library` vacía, volumen con nombre `db-data` | `5432` |
+| `api` | Se construye desde `../test-manager-library-3145556-api`. Al arrancar ejecuta las migraciones y después crea el admin inicial desde `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `8000` (provisional: el spec no define el puerto) |
+| `app` | Se construye desde `../test-manager-library-3145556-app`. Solo con `docker compose --profile app up --build` | `5173` |
+
+Quién crea qué:
+
+- `db` crea el motor, la base `library` y su usuario dueño. Nada más.
+- Las migraciones de la API crean el esquema `library`, las seis tablas, las restricciones, los índices y las cinco categorías.
+- El entrypoint de la API ejecuta `php artisan migrate --force` y después `php artisan library:bootstrap-admin`
+  (interpretación I-08 en `docs/spec-laravel/interpretations.md`).
+
+## Verificar que la base arranca vacía
+
+```bash
+docker compose up -d --wait db
+docker compose exec db psql -U library -d library -Atc \
+  "select count(*) from information_schema.tables where table_schema not in ('pg_catalog','information_schema');"
+# esperado: 0
+docker compose exec db psql -U library -d library -Atc "show timezone;"
+# esperado: UTC
+grep -rniI "create table" --exclude-dir=.git . || echo "sin DDL en infra"
+```
+
+Cuando la API haya arrancado, las consultas de `data-model.md` §10 (ejecutadas con `docker compose exec db psql -U library -d library`)
+deben devolver exactamente las tablas, restricciones e índices documentados ahí.
+
+## Estado
+
+| Parte | Estado |
 |---|---|
-| [`test-manager-library-3145556-docs`](https://github.com/code-sena/test-manager-library-3145556-docs) | El spec: `spec-python/` y `spec-.net/` |
-| [`test-manager-library-3145556-api`](https://github.com/code-sena/test-manager-library-3145556-api) | Backend en PHP (Laravel) |
-| [`test-manager-library-3145556-app`](https://github.com/code-sena/test-manager-library-3145556-app) | Frontend en React |
-| [`test-manager-library-3145556-page`](https://github.com/code-sena/test-manager-library-3145556-page) | Sitio público estático de presentación |
-| [`test-manager-library-3145556-infra`](https://github.com/code-sena/test-manager-library-3145556-infra) | Contenedores, red, volúmenes y motor de base de datos vacío |
-| [`test-manager-library-3145556-tool`](https://github.com/code-sena/test-manager-library-3145556-tool) | Utilidades: sembrador de datos de demostración |
+| `db` arranca vacío con un comando | verificado el 2026-10-13 (0 tablas, zona horaria UTC) |
+| Servicio `api` | pendiente: el repositorio `api` aún no tiene `Dockerfile` (T-01) |
+| Servicio `app` | pendiente: el repositorio `app` aún no tiene `Dockerfile` (T-22) |
+
+## Reiniciar
+
+```bash
+docker compose down -v   # elimina los contenedores y los volúmenes db-data y covers
+```
